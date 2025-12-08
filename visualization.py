@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import ConvexHull
 from matplotlib.patches import Polygon
+import matplotlib.patches as mpatches
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import networkx as nx
@@ -91,9 +92,9 @@ def plotar_matriz_densidade(matriz):
 
 def draw_community_edges(G, communities, pos, ax=None, colors=None, inter_community_color='red', alpha=0.5):
     """
-    Draws edges with colors based on community structure.
-    Edges within a community get the community color.
-    Edges between different communities get the inter_community_color.
+    Desenha arestas com cores baseadas na estrutura da comunidade.
+    Arestas dentro de uma comunidade recebem a cor da comunidade.
+    Arestas entre comunidades diferentes recebem a cor inter_community_color.
     """
     if ax is None:
         ax = plt.gca()
@@ -124,18 +125,18 @@ def draw_community_edges(G, communities, pos, ax=None, colors=None, inter_commun
 
 def get_node_colors_by_centrality(nodes, centrality_map, cmap_name='viridis', default_color='lightgray', seed_nodes=None):
     """
-    Generates a dictionary of node colors based on centrality values.
+    Gera um dicionário de cores dos nós com base nos valores de centralidade.
     
     Args:
-        nodes: Iterable of nodes to color.
-        centrality_map: Dictionary mapping nodes to centrality values.
-        cmap_name: Name of the matplotlib colormap to use.
-        default_color: Color for nodes without centrality values (if any).
-        seed_nodes: List/set of nodes to color strictly as 'red'.
+        nodes: Iterável de nós para colorir.
+        centrality_map: Dicionário mapeando nós para valores de centralidade.
+        cmap_name: Nome do mapa de cores do matplotlib a ser usado.
+        default_color: Cor para nós sem valores de centralidade (se houver).
+        seed_nodes: Lista/conjunto de nós para colorir estritamente como 'red'.
         
     Returns:
-        dict: node -> color
-        (min_val, max_val): Tuple of min and max centrality values for scaling.
+        dict: node -> cor
+        (min_val, max_val): Tupla de valores mínimo e máximo de centralidade para escala.
     """
     if not centrality_map:
         return {n: default_color for n in nodes}, 0, 0
@@ -168,3 +169,152 @@ def get_node_colors_by_centrality(nodes, centrality_map, cmap_name='viridis', de
             colors[node] = default_color
             
     return colors, min_val, max_val
+
+
+def plotar_metrica(G, metrica, seed_nodes=None, filename='metrica.png', pos=None):
+    node_colors = {}
+    node_labels = {}
+
+    metric_values = [score for node, score in metrica.items() if node not in seed_nodes]
+
+    if metric_values:
+        min_metric = min(metric_values)
+        max_metric = max(metric_values)
+    else:
+        min_metric = 0
+        max_metric = 0
+
+    cmap = cm.YlGnBu
+
+    for node in G.nodes():
+        if node in seed_nodes:
+            node_colors[node] = 'red'
+            node_labels[node] = f'{node}'
+        else:
+            if max_metric == min_metric:
+                normalized_metric = 0.5
+            else:
+                normalized_metric = (metrica[node] - min_metric) / (max_metric - min_metric)
+            node_colors[node] = cmap(normalized_metric)
+            node_labels[node] = f'{metrica[node]:.2f}'
+
+    if pos is None:
+        pos = nx.spring_layout(G)
+
+    plt.figure(figsize=(12, 10))
+    nx.draw(G,
+            pos=pos,
+            node_color=[node_colors[n] for n in G.nodes()],
+            with_labels=True,
+            labels=node_labels,
+            font_size=8,
+            font_weight='bold',
+            node_size=400,
+            alpha=0.8)
+
+    if metric_values:
+        sm = cm.ScalarMappable(cmap=cmap,
+                            norm=mcolors.Normalize(vmin=min_metric, vmax=max_metric))
+        sm.set_array([])
+        cb = plt.colorbar(sm, ax=plt.gca(), orientation='vertical', fraction=0.02, pad=0.02)
+        cb.set_label('Score da Métrica')
+
+    red_patch = mpatches.Patch(color='red', label='Nós escolhidos')
+    plt.legend(handles=[red_patch])
+
+    plt.title('Visualização da Métrica')
+    plt.savefig(filename)
+    plt.close()
+
+def plot_graph_communities(G, comm, pos, filename='graph.png'):
+    """
+    Plots the graph with communities colored.
+    """
+    # Import locally to avoid potential circular dependency issues if utils imports visualization
+    from utils import generate_random_hex_colors 
+    
+    node_colors = {}
+    node_labels = {}
+    cores = generate_random_hex_colors(len(comm))
+    for i, c in enumerate(comm):
+        for node in c:
+            node_colors[node] = cores[i]
+            node_labels[node] = i
+
+    plt.figure(figsize=(7, 5))
+    sorted_nodes = list(G.nodes())
+    # Use get with default to be safe
+    colors_list = [node_colors.get(n, 'lightgray') for n in sorted_nodes]
+    
+    nx.draw(G, with_labels=False, font_weight='bold', pos=pos, node_size=50, 
+            node_color=colors_list, 
+            labels=node_labels, font_color='blue', font_size=20)
+    plt.savefig(filename)
+    plt.close()
+
+def plot_induced_subgraph(subgraph, pos, node_colors, min_bc, max_bc, filename='induced_subgraph.png'):
+    """
+    Plots the induced subgraph with centrality heatmap.
+    """
+    cmap = cm.get_cmap('viridis')
+    plt.figure(figsize=(10, 8))
+    
+    sorted_nodes = list(subgraph.nodes())
+    colors_list = [node_colors.get(n, 'lightgray') for n in sorted_nodes]
+    
+    nx.draw(subgraph,
+            pos=pos,
+            node_color=colors_list,
+            with_labels=False,
+            node_size=50,
+            alpha=0.7)
+            
+    sm = cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=min_bc, vmax=max_bc))
+    sm.set_array([])
+    cb = plt.colorbar(sm, ax=plt.gca())
+    cb.set_label('Centralidade')
+    
+    red_patch = mpatches.Patch(color='red', label='Nós Sementes')
+    plt.legend(handles=[red_patch])
+    plt.title('Subgrafo Induzido: Nós Sementes e Centralidade')
+    plt.savefig(filename)
+    plt.close()
+
+def plot_final_visualization(G, comm, pos, seed_nodes, min_bc_induced, max_bc_induced, final_node_colors, filename='graph_visualization.png'):
+    """
+    Plots the final visualization with complex overlays.
+    """
+    cmap = cm.get_cmap('viridis')
+    
+    sorted_nodes = list(G.nodes())
+    final_node_colors_list = [final_node_colors.get(n, 'lightgray') for n in sorted_nodes]
+
+    plt.figure(figsize=(12, 10))
+    ax = plt.gca()
+
+    nx.draw_networkx_nodes(G,
+            pos=pos,
+            node_color=final_node_colors_list,
+            node_size=50,
+            alpha=0.7,
+            ax=ax)
+
+    draw_community_edges(G, comm, pos, ax=ax)
+
+    handles = []
+    red_patch = mpatches.Patch(color='red', label='Nós Sementes')
+    handles.append(red_patch)
+    gray_patch = mpatches.Patch(color='lightgray', label='Outros Nós')
+    handles.append(gray_patch)
+
+    # Check if we have valid range for colorbar
+    if min_bc_induced is not None and max_bc_induced is not None and max_bc_induced > min_bc_induced:
+        sm_bc = cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=min_bc_induced, vmax=max_bc_induced))
+        sm_bc.set_array([])
+        cb_bc = plt.colorbar(sm_bc, ax=ax, orientation='vertical', fraction=0.02, pad=0.02)
+        cb_bc.set_label('Centralidade dos Nós do Subgrafo Induzido')
+
+    plt.legend(handles=handles, loc='upper left')
+    plt.title('Visualização do Grafo: Comunidades, Nós Sementes e Centralidade')
+    plt.savefig(filename)
+    plt.close()
