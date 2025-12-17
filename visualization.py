@@ -7,6 +7,31 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import networkx as nx
 
+def plot_list_values(values_list):
+    """
+    Plota o gráfico de dispersão da distribuição complementar dos valores de uma lista.
+    Cria um layout 2x2: cada valor é plotado em escala linear (esquerda) e log-log (direita).
+    
+    Args:
+        values (list): Lista de valores para plotar.
+        titles (list): Lista de títulos para cada valor.
+    """
+    if isinstance(values_list, dict):
+        values_list = list(values_list.values())
+    
+    values_list.sort(reverse=True)
+    plt.figure(figsize=(10, 5))
+    plt.plot(values_list)
+    plt.title("Distribuição complementar dos valores")
+    plt.xlabel("Frequência")
+    plt.xscale('log')
+    plt.ylabel("Valor")
+    plt.grid(True, which="both", ls="--", c='0.7')
+    plt.tight_layout()
+    plt.show()
+
+    
+
 def plot_degree_distribution_complementar(grafos, titles=None):
   """Plota o gráfico de dispersão da distribuição complementar do grau.
   Cria um layout 2x2: cada grafo é plotado em escala linear (esquerda) e log-log (direita).
@@ -71,6 +96,12 @@ def plot_degree_distribution_complementar(grafos, titles=None):
 
 
 def plotar_matriz_densidade(matriz):
+    """
+    Plota uma matriz de densidade entre comunidades.
+
+    Args:
+        matriz (numpy.ndarray): Matriz de densidade entre comunidades.
+    """
     fig, ax = plt.subplots(figsize=(7, 6))
     im = ax.imshow(matriz, cmap="viridis")
 
@@ -95,6 +126,15 @@ def draw_community_edges(G, communities, pos, ax=None, colors=None, inter_commun
     Desenha arestas com cores baseadas na estrutura da comunidade.
     Arestas dentro de uma comunidade recebem a cor da comunidade.
     Arestas entre comunidades diferentes recebem a cor inter_community_color.
+
+    Args:
+        G (nx.Graph): O grafo original.
+        communities (list): Lista de comunidades.
+        pos (dict): Posicionamento dos nós.
+        ax (matplotlib.axes.Axes, optional): Eixo para desenhar o gráfico. Se None, usa o eixo atual.
+        colors (list, optional): Lista de cores para as comunidades. Se None, gera aleatoriamente.
+        inter_community_color (str, optional): Cor para arestas entre comunidades. Padrão é 'red'.
+        alpha (float, optional): Transparência das arestas. Padrão é 0.5.
     """
     if ax is None:
         ax = plt.gca()
@@ -171,7 +211,20 @@ def get_node_colors_by_centrality(nodes, centrality_map, cmap_name='viridis', de
     return colors, min_val, max_val
 
 
-def plotar_metrica(G, metrica, seed_nodes=None, filename='metrica.png', pos=None):
+def plotar_metrica(G, metrica, seed_nodes=None, famous_nodes=None, filename='metrica.png', pos=None):
+    """
+    Plota uma métrica personalizada para todos os nós.
+
+    Args:
+        G (nx.Graph): O grafo original.
+        metrica (dict): Dicionário com a métrica personalizada para cada nó.
+        seed_nodes (list, optional): Lista de nós semente. Se None, gera 10 nós aleatórios.
+        filename (str, optional): Nome do arquivo para salvar a imagem. Padrão é 'metrica.png'.
+        pos (dict, optional): Posicionamento dos nós. Se None, usa o layout de spring.
+
+    Returns:
+        None
+    """
     node_colors = {}
     node_labels = {}
 
@@ -189,6 +242,9 @@ def plotar_metrica(G, metrica, seed_nodes=None, filename='metrica.png', pos=None
     for node in G.nodes():
         if node in seed_nodes:
             node_colors[node] = 'red'
+            node_labels[node] = f'{node}'
+        elif node in famous_nodes:
+            node_colors[node] = 'pink'
             node_labels[node] = f'{node}'
         else:
             if max_metric == min_metric:
@@ -228,7 +284,16 @@ def plotar_metrica(G, metrica, seed_nodes=None, filename='metrica.png', pos=None
 
 def plot_graph_communities(G, comm, pos, filename='graph.png'):
     """
-    Plots the graph with communities colored.
+    Plota o grafo com as comunidades coloridas.
+
+    Args:
+        G (nx.Graph): O grafo original.
+        comm (list): Lista de comunidades.
+        pos (dict): Posicionamento dos nós.
+        filename (str, optional): Nome do arquivo para salvar a imagem. Padrão é 'graph.png'.
+
+    Returns:
+        None
     """
     # Import locally to avoid potential circular dependency issues if utils imports visualization
     from utils import generate_random_hex_colors 
@@ -241,20 +306,33 @@ def plot_graph_communities(G, comm, pos, filename='graph.png'):
             node_colors[node] = cores[i]
             node_labels[node] = i
 
-    plt.figure(figsize=(7, 5))
+    plt.figure(figsize=(20, 15))
     sorted_nodes = list(G.nodes())
     # Use get with default to be safe
     colors_list = [node_colors.get(n, 'lightgray') for n in sorted_nodes]
     
-    nx.draw(G, with_labels=False, font_weight='bold', pos=pos, node_size=50, 
-            node_color=colors_list, 
-            labels=node_labels, font_color='blue', font_size=20)
+    nx.draw(G, with_labels=False, font_weight='bold', pos=pos, node_size=80, 
+            node_color=colors_list,
+            edge_color='gray',
+            # labels=node_labels, 
+            font_color='blue', font_size=12)
     plt.savefig(filename)
     plt.close()
 
 def plot_induced_subgraph(subgraph, pos, node_colors, min_bc, max_bc, filename='induced_subgraph.png'):
     """
-    Plots the induced subgraph with centrality heatmap.
+    Plota o subgrafo induzido com mapa de calor de centralidade.
+
+    Args:
+        subgraph (nx.Graph): O subgrafo induzido.
+        pos (dict): Posicionamento dos nós.
+        node_colors (dict): Dicionário de cores dos nós.
+        min_bc (float): Valor mínimo de centralidade.
+        max_bc (float): Valor máximo de centralidade.
+        filename (str, optional): Nome do arquivo para salvar a imagem. Padrão é 'induced_subgraph.png'.
+
+    Returns:
+        None
     """
     cmap = cm.get_cmap('viridis')
     plt.figure(figsize=(10, 8))
@@ -282,7 +360,20 @@ def plot_induced_subgraph(subgraph, pos, node_colors, min_bc, max_bc, filename='
 
 def plot_final_visualization(G, comm, pos, seed_nodes, min_bc_induced, max_bc_induced, final_node_colors, filename='graph_visualization.png'):
     """
-    Plots the final visualization with complex overlays.
+    Plota a visualização final com complexos overlays.
+
+    Args:
+        G (nx.Graph): O grafo original.
+        comm (list): Lista de comunidades.
+        pos (dict): Posicionamento dos nós.
+        seed_nodes (list): Lista de nós semente.
+        min_bc_induced (float): Valor mínimo de centralidade do subgrafo induzido.
+        max_bc_induced (float): Valor máximo de centralidade do subgrafo induzido.
+        final_node_colors (dict): Dicionário de cores dos nós.
+        filename (str, optional): Nome do arquivo para salvar a imagem. Padrão é 'graph_visualization.png'.
+
+    Returns:
+        None
     """
     cmap = cm.get_cmap('viridis')
     
@@ -318,3 +409,35 @@ def plot_final_visualization(G, comm, pos, seed_nodes, min_bc_induced, max_bc_in
     plt.title('Visualização do Grafo: Comunidades, Nós Sementes e Centralidade')
     plt.savefig(filename)
     plt.close()
+
+def plot_summary_metrics(parametros, ranking_recomendados, novidade, cobertura, filename='metrics_summary_plot.png'):
+    import matplotlib.pyplot as plt
+
+    _, axs = plt.subplots(3, 1, figsize=(10, 15))
+
+    # Plotting the number of recommended nodes
+    num_recomendados = [len(r) for r in ranking_recomendados]
+    axs[0].plot(parametros, num_recomendados, marker='o')
+    axs[0].set_title('Número de Nós Recomendados vs. Parâmetro de Distância')
+    # axs[0].set_xlabel('Parâmetro de Distância (max_distance)')
+    axs[0].set_ylabel('Número de Nós')
+    axs[0].grid(True)
+
+    # Plotting Novelty
+    axs[1].plot(parametros, novidade, marker='o', color='green')
+    axs[1].set_title('Novidade vs. Parâmetro de Distância')
+    # axs[1].set_xlabel('Parâmetro de Distância (max_distance)')
+    axs[1].set_ylabel('Novidade')
+    axs[1].set_yscale('log')
+    axs[1].grid(True)
+
+    # Plotting Catalog Coverage
+    axs[2].plot(parametros, cobertura, marker='o', color='red')
+    axs[2].set_title('Cobertura do Catálogo vs. Parâmetro de Distância')
+    axs[2].set_xlabel('Parâmetro de Distância')
+    axs[2].set_ylabel('Cobertura (%)')
+    axs[2].grid(True)
+
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.show()
